@@ -1,0 +1,25 @@
+archive = "tar"
+archiveDir = "/tmp/"
+compression = "gzip"
+compressionLevel = 9
+deleteAfterUpload = true
+
+[remotes.copyparty]
+type = "copyparty"
+root = "https://copyparty.example.com/qbs/"
+password = "password"
+
+[remotes.nextcloud]
+type = "nextcloud"
+root = "https://nextcloud.example.com"
+destDir = "Backups"
+
+# Go to Settings > Security, scroll down to find "Devices & sessions", and create an app password
+# for filling out these 2 fields
+user = "linesofcodes"
+password = "AppPassword"
+
+[targets.PaperTest]
+path = "/var/lib/qsm-web/servers/PaperTest/"
+remote = "copyparty"
+interval = "weekly"
