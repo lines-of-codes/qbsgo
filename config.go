@@ -27,7 +27,7 @@ type (
 		// Whether to delete the backup archive after it is uploaded or not.
 		DeleteAfterUpload bool
 
-		WriteToFileFirst bool
+		// WriteToFileFirst bool
 
 		IdLength int
 		Remotes  map[string]remote

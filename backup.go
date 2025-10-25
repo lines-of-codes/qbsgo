@@ -3,7 +3,6 @@ package main
 import (
 	"archive/tar"
 	"archive/zip"
-	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -43,20 +42,12 @@ func (c *config) backup(targets []string) {
 
 		backupId := genCuid()
 		date := time.Now()
-		fileName := fmt.Sprintf("%s-%d%s%d-%s.%s", targetName, date.Day(), date.Month().String()[0:4], date.Year(), backupId, fileExt)
+		fileName := fmt.Sprintf("%s-%d%s%d-%s.%s", targetName, date.Day(), date.Month().String()[0:3], date.Year(), backupId, fileExt)
 		outPath := path.Join(c.ArchiveDir, fileName)
 
 		log.Printf("-- Backing up target %s with ID %s\n", targetName, backupId)
 
-		// var buff io.Reader
-		var file *os.File
-
-		if c.WriteToFileFirst || remote.Type == "copyparty" {
-			file, err = c.writeToFileFirst(target, outPath)
-			// buff = file
-		} else {
-			// buff, err = c.archiveBuffer(target)
-		}
+		file, err := c.writeToFileFirst(target, outPath)
 
 		if err != nil {
 			log.Printf("Error in archive creation: %s", err)
@@ -69,20 +60,20 @@ func (c *config) backup(targets []string) {
 			continue
 		}
 
-		if file != nil {
-			defer file.Close()
-		}
+		defer file.Close()
 
 		switch remote.Type {
 		case "copyparty":
 			err = c.copypartyUpload(target.Remote, outPath)
+		case "nextcloud":
+			err = c.nextcloudUpload(target.Remote, outPath, fileName)
 		}
 
 		if err != nil {
 			log.Printf("Error while uploading file to %s/%s because:\n%s", target.Remote, fileName, err)
 		}
 
-		if c.WriteToFileFirst && c.DeleteAfterUpload {
+		if c.DeleteAfterUpload {
 			log.Printf("Deleting %s...", outPath)
 			err = os.Remove(outPath)
 
@@ -111,12 +102,6 @@ func (c *config) writeToFileFirst(target target, outPath string) (*os.File, erro
 	}
 
 	return file, nil
-}
-
-func (c *config) archiveBuffer(target target) (*bytes.Buffer, error) {
-	var b bytes.Buffer
-	err := c.createArchive(target.Path, &b)
-	return &b, err
 }
 
 func (c *config) createArchive(sourceDir string, output io.Writer) error {

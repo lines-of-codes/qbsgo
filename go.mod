@@ -12,4 +12,5 @@ require (
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/nrednav/cuid2 v1.1.0
+	github.com/studio-b12/gowebdav v0.11.0
 )
