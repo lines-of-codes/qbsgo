@@ -4,6 +4,11 @@ compression = "gzip"
 compressionLevel = 9
 deleteAfterUpload = true
 
+[backupList]
+enabled = true
+cleanEntries = true
+olderThan = "1m"
+
 [remotes.copyparty]
 type = "copyparty"
 root = "https://copyparty.example.com/qbs/"

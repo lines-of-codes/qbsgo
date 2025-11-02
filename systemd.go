@@ -16,6 +16,10 @@ import (
 const UNIT_NAME_PREFIX = "qbsgo-generated-"
 const SEPERATOR = "----------"
 
+var unitFilesLocation = "/etc/systemd/system"
+var filePerms = os.FileMode(0644)
+var operationMode = "--system"
+
 func (c *config) install(targets []string) {
 	currentUser, err := user.Current()
 
@@ -24,10 +28,16 @@ func (c *config) install(targets []string) {
 	}
 
 	if currentUser.Username != "root" {
-		log.Fatalf("Installation of systemd units require root previledges. Please run this command as root.")
+		unitFilesLocation = fmt.Sprintf("/home/%s/.config/systemd/user", currentUser.Username)
+		operationMode = "--user"
+		err := os.MkdirAll(unitFilesLocation, filePerms)
+
+		if err != nil {
+			log.Fatalf("Unable to create the user system units folder: %s", err)
+		}
 	}
 
-	fmt.Println("Unit files will be installed to /etc/systemd/system/")
+	fmt.Printf("Unit files will be installed to %s\n", unitFilesLocation)
 	fmt.Print("Do you wish to clean up existing QBS unit files? (if there is any) [Y/n] ")
 
 	var answer string
@@ -51,15 +61,17 @@ func (c *config) install(targets []string) {
 
 	fmt.Printf("Using %s as the text editor. Set the EDITOR environment variable to use something else.\n\n", textEditor)
 
-	var username string
+	username := ""
 
-	fmt.Println("In the system service files, Do you want the backup to run as a specific user?")
-	fmt.Println("Enter the wanted username or enter nothing to run as root.")
-	fmt.Println("Note: QBS will assume the user has a group of the same name and the service will run with that group.")
-	fmt.Print("> ")
-	fmt.Scanln(&username)
+	if operationMode == "--system" {
+		fmt.Println("In the system service files, Do you want the backup to run as a specific user?")
+		fmt.Println("Enter the wanted username or enter nothing to run as root.")
+		fmt.Println("Note: QBS will assume the user has a group of the same name and the service will run with that group.")
+		fmt.Print("> ")
+		fmt.Scanln(&username)
 
-	fmt.Println()
+		fmt.Println()
+	}
 
 	intervals := make(map[string][]string)
 
@@ -77,13 +89,13 @@ func (c *config) install(targets []string) {
 
 		fileName := intervalOrServerNames(interval, targetList)
 
-		serviceFile := fmt.Sprintf("/etc/systemd/system/%s%s.service", UNIT_NAME_PREFIX, fileName)
+		serviceFile := fmt.Sprintf("%s/%s%s.service", unitFilesLocation, UNIT_NAME_PREFIX, fileName)
 		fmt.Println(serviceFile)
 
-		timerFile := fmt.Sprintf("/etc/systemd/system/%s%s.timer", UNIT_NAME_PREFIX, fileName)
+		timerFile := fmt.Sprintf("%s/%s%s.timer", unitFilesLocation, UNIT_NAME_PREFIX, fileName)
 		fmt.Println(timerFile)
 
-		serviceUnit, err := genService(targetList, username)
+		serviceUnit, err := c.genService(targetList, username)
 
 		if err != nil {
 			log.Fatalf("Error while generating service unit for interval \"%s\": %s", interval, err)
@@ -130,8 +142,8 @@ func (c *config) install(targets []string) {
 		}
 	}
 
-	fmt.Println("Running \"systemctl daemon-reload\"...")
-	reloadCmd := exec.Command("systemctl", "daemon-reload")
+	fmt.Printf("Running \"systemctl %s daemon-reload\"...\n", operationMode)
+	reloadCmd := exec.Command("systemctl", operationMode, "daemon-reload")
 
 	if err := reloadCmd.Run(); err != nil {
 		log.Printf("Command \"systemctl daemon-reload\" failed: %s", err)
@@ -147,8 +159,8 @@ func (c *config) install(targets []string) {
 
 	for interval, _ := range intervals {
 		timerName := fmt.Sprintf("%s%s.timer", UNIT_NAME_PREFIX, interval)
-		fmt.Printf("Running: systemctl enable --now %s\n", timerName)
-		cmd := exec.Command("systemctl", "enable", "--now", timerName)
+		fmt.Printf("Running: systemctl %s enable --now %s\n", operationMode, timerName)
+		cmd := exec.Command("systemctl", operationMode, "enable", "--now", timerName)
 
 		if err := cmd.Run(); err != nil {
 			fmt.Printf("Enabling and starting unit failed for unit \"%s\". Because: %s\n", timerName, err)
@@ -165,8 +177,8 @@ func intervalOrServerNames(interval string, names []string) string {
 }
 
 func saveTimerFiles(servicePath, service, timerPath, timer string) {
-	os.WriteFile(servicePath, []byte(service), 0644)
-	os.WriteFile(timerPath, []byte(timer), 0644)
+	os.WriteFile(servicePath, []byte(service), filePerms)
+	os.WriteFile(timerPath, []byte(timer), filePerms)
 }
 
 func editUnitFiles(service string, timer string, editor string) (newService string, newTimer string) {
@@ -194,7 +206,7 @@ func editUnitFiles(service string, timer string, editor string) (newService stri
 }
 
 func editFile(editor, filePath, original string) string {
-	err := os.WriteFile(filePath, []byte(original), 0644)
+	err := os.WriteFile(filePath, []byte(original), filePerms)
 
 	if err != nil {
 		log.Fatalf("Cannot create temporary file for editing: %s", err)
@@ -224,10 +236,11 @@ func editFile(editor, filePath, original string) string {
 
 func cleanUnits() {
 	var fileList []string
+	toBeDisabled := make(map[string]struct{})
 
-	fmt.Println("The following files will be deleted:")
+	fmt.Println("The following units will be disabled:")
 
-	filepath.WalkDir("/etc/systemd/system/", func(path string, entry fs.DirEntry, err error) error {
+	filepath.WalkDir(unitFilesLocation, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -236,7 +249,12 @@ func cleanUnits() {
 
 		if strings.HasPrefix(name, UNIT_NAME_PREFIX) {
 			fileList = append(fileList, path)
-			fmt.Println(path)
+		}
+
+		_, planned := toBeDisabled[name]
+		if !planned && strings.HasSuffix(name, ".timer") {
+			toBeDisabled[name] = struct{}{}
+			fmt.Println(name)
 		}
 
 		return nil
@@ -247,23 +265,67 @@ func cleanUnits() {
 		return
 	}
 
-	fmt.Print("Do you wish to continue? [Y/n] ")
+	if len(toBeDisabled) == 0 {
+		fmt.Println("No timers found.")
+	} else {
+		fmt.Print("Do you wish to continue? [Y/n] ")
+
+		var answer string
+		fmt.Scanln(&answer)
+
+		if strings.ToLower(answer) != "y" {
+			return
+		}
+
+		for unit := range toBeDisabled {
+			fmt.Printf("Running: systemctl %s disable --now %s\n", operationMode, unit)
+			cmd := exec.Command("systemctl", operationMode, "disable", "--now", unit)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+
+			if err := cmd.Run(); err != nil {
+				fmt.Printf("Skipping unit, Unable to disable unit %s: %s\n", unit, err)
+			}
+		}
+	}
+
+	fmt.Println("The following files will be deleted:")
+
+	var newFileList []string
+	filepath.WalkDir(unitFilesLocation, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		name := entry.Name()
+
+		if strings.HasPrefix(name, UNIT_NAME_PREFIX) {
+			newFileList = append(newFileList, path)
+			fmt.Println(path)
+		}
+
+		return nil
+	})
+
+	fmt.Print("Do you wish to delete the unit files? [Y/n] ")
 
 	var answer string
-	fmt.Scan(&answer)
+	fmt.Scanln(&answer)
 
 	if strings.ToLower(answer) != "y" {
 		return
 	}
 
-	for _, file := range fileList {
+	for _, file := range newFileList {
+		fmt.Printf("Deleting: %s\n", file)
 		os.Remove(file)
 	}
 
 	fmt.Println("Done deleting.")
 }
 
-func genService(names []string, user string) (string, error) {
+func (c *config) genService(names []string, user string) (string, error) {
 	exe, err := os.Executable()
 
 	if err != nil {
@@ -272,10 +334,20 @@ func genService(names []string, user string) (string, error) {
 
 	name := strings.Join(names, ",")
 
-	runAs := ""
+	additionalInfo := ""
 
 	if user != "" {
-		runAs = fmt.Sprintf("\nUser=%s\nGroup=%s", user, user)
+		additionalInfo = fmt.Sprintf("\nUser=%s\nGroup=%s", user, user)
+	}
+
+	if c.configPath == "./qbsgo.toml" {
+		exe, err := os.Executable()
+
+		if err != nil {
+			log.Fatalf("Unable to get the executable's path: %s", err)
+		}
+
+		additionalInfo += fmt.Sprintf("\nWorkingDirectory=%s", filepath.Dir(exe))
 	}
 
 	return fmt.Sprintf(`[Unit]
@@ -284,7 +356,7 @@ Wants=network-online.target
 After=network-online.target
 
 [Service]%s
-ExecStart=%s -targets %s -backup`, name, runAs, exe, name), nil
+ExecStart=%s -targets %s -backup`, name, additionalInfo, exe, name), nil
 }
 
 func genTimer(names []string, interval string) string {

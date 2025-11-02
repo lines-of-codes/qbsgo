@@ -8,7 +8,8 @@ import (
 	"os/exec"
 )
 
-func (c *config) copypartyUpload(remoteName string, file string) error {
+// Returns: Destination URL, Error
+func (c *config) copypartyUpload(remoteName string, inputFile string, fileName string) (string, error) {
 	remote := c.Remotes[remoteName]
 	script := remote.Script
 
@@ -29,14 +30,20 @@ func (c *config) copypartyUpload(remoteName string, file string) error {
 	dest, err := url.JoinPath(remote.Root, remote.DestDir)
 
 	if err != nil {
-		return fmt.Errorf("Error while URL is being joined: %w", err)
+		return "", fmt.Errorf("Error while URL is being joined: %w", err)
 	}
 
-	cmd := exec.Command(script, password, dest, file)
+	destWithFile, err := url.JoinPath(dest, fileName)
+
+	if err != nil {
+		return "", fmt.Errorf("Error while URL is being joined: %w", err)
+	}
+
+	cmd := exec.Command(script, password, dest, inputFile)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	log.Printf("Running command: %s", cmd.String())
 
-	return cmd.Run()
+	return destWithFile, cmd.Run()
 }

@@ -31,5 +31,8 @@ go.work.sum
 # .idea/
 # .vscode/
 
+# QBSGo application files
 qbsgo.toml
 qbsgo
+backuplist.json
+backuplist.json.lock

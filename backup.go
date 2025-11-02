@@ -47,7 +47,11 @@ func (c *config) backup(targets []string) {
 
 		log.Printf("-- Backing up target %s with ID %s\n", targetName, backupId)
 
+		backupStart := time.Now()
+
 		file, err := c.writeToFileFirst(target, outPath)
+
+		log.Printf("Archival took %.2f seconds", time.Since(backupStart).Seconds())
 
 		if err != nil {
 			log.Printf("Error in archive creation: %s", err)
@@ -61,12 +65,13 @@ func (c *config) backup(targets []string) {
 		}
 
 		defer file.Close()
+		var dest string
 
 		switch remote.Type {
 		case "copyparty":
-			err = c.copypartyUpload(target.Remote, outPath)
+			dest, err = c.copypartyUpload(target.Remote, outPath, fileName)
 		case "nextcloud":
-			err = c.nextcloudUpload(target.Remote, outPath, fileName)
+			dest, err = c.nextcloudUpload(target.Remote, outPath, fileName)
 		}
 
 		if err != nil {
@@ -82,8 +87,17 @@ func (c *config) backup(targets []string) {
 			}
 		}
 
+		c.BackupList.append(listEntry{
+			Id:       backupId,
+			Date:     backupStart.Format(time.RFC3339),
+			Remote:   target.Remote,
+			FilePath: dest,
+		})
+
 		log.Printf("Done with target %s\n", targetName)
 	}
+
+	c.BackupList.cleanUp()
 }
 
 func (c *config) writeToFileFirst(target target, outPath string) (*os.File, error) {

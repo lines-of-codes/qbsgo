@@ -24,10 +24,73 @@ require workarounds
 - `-install`: Install systemd Timers to trigger backups periodically.
 - `-version`: Prints the version of the program and exit.
 
+## Systemd Timers
+
+Systemd timers can be installed by running QBSGo with the install flag. For
+example:
+
+```bash
+qbsgo -targets all -install
+```
+
+Running QBSGo as root will install the unit files onto the system at
+`/etc/systemd/system` and running it as other users will install it
+at `/home/USER/.config/systemd/user`
+
+To uninstall those unit files, You can stop & disable them manually then delete
+them at the directory specified above, or you can run the install command again,
+instruct the program to clean up old unit files, and press Ctrl+C when the save
+options pops up. The process would generally go as follows:
+
+```
+❯ ./qbsgo -targets all -install
+2025/11/02 16:59:59 Validating target "/var/lib/qsm-web/servers/PaperTest/"
+  Original form: weekly
+Normalized form: Mon *-*-* 00:00:00
+    Next elapse: Mon 2025-11-03 00:00:00 +07
+       (in UTC): Sun 2025-11-02 17:00:00 UTC
+       From now: 7h left
+Unit files will be installed to /home/linesofcodes/.config/systemd/user
+Do you wish to clean up existing QBS unit files? (if there is any) [Y/n] Y
+The following units will be disabled:
+qbsgo-generated-weekly.timer
+Do you wish to continue? [Y/n] Y
+Running: systemctl --user disable --now qbsgo-generated-weekly.timer
+The following files will be deleted:
+/home/linesofcodes/.config/systemd/user/qbsgo-generated-weekly.service
+/home/linesofcodes/.config/systemd/user/qbsgo-generated-weekly.timer
+Do you wish to delete the unit files? [Y/n] Y
+Deleting: /home/linesofcodes/.config/systemd/user/qbsgo-generated-weekly.service
+Deleting: /home/linesofcodes/.config/systemd/user/qbsgo-generated-weekly.timer
+Done deleting.
+Using vim as the text editor. Set the EDITOR environment variable to use something else.
+
+Interval: weekly
+Target(s): PaperTest
+This will generate the following files:
+/home/linesofcodes/.config/systemd/user/qbsgo-generated-weekly.service
+/home/linesofcodes/.config/systemd/user/qbsgo-generated-weekly.timer
+Please choose an action:
+[r]eview/[e]dit/[s]ave/save [a]ll ^C
+```
+
+**Note:** `^C` represents when Ctrl+C was pressed.
+
+## Backup List file
+
+QBSGo can store a list of backups. It is disabled by default and can be enabled
+through the configuration file in the `backupList` section.
+
+The backup list file is named `backuplist.json` and is stored in the same
+directory as the configuration file
+
+The backup list is not guaranteed to be accurate, as the backup file could
+be deleted or renamed on the remote file storage system and QBS wouldn't know.
+
 ## Configuration
 
 QBSGo uses a TOML configuration file named `qbsgo.toml`. It expects the file
-to be at `/etc/qbsgo.toml` or in the same directory as the binary
+to be at `/etc/qbsgo/qbsgo.toml` or in the same directory as the binary
 
 An example configuration file can be found at [`qbsgo.example.toml`](./qbsgo.example.toml).
 
@@ -88,6 +151,22 @@ Notes:
 - QBS relies on the `u2c` script. Please make them available in PATH or provide
   them with the `script` key
 
+#### password
+
+The password field can optionally refer to a file instead of directly
+specifying the password in the config file.
+
+To refer to a file, use a `file:` prefix. For example:
+
+```toml
+# Refers to a file within the same working directory as QBS
+password = "file:password.txt"
+# Absolute paths also work!
+password = "file:/home/user/Documents/password.txt"
+```
+
+Note that this isn't the regular URI style, So it's not `file://`
+
 ### Targets
 
 An example target:
@@ -111,3 +190,7 @@ for more information.
 1. Install [Go](https://go.dev/)
 2. Clone this repository
 3. Run `go build` at the project's root
+
+## License
+
+This project is licensed under GNU GPLv3.
