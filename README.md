@@ -123,6 +123,24 @@ up to level 22 like the original implementation.
 If `true`, After the backup archive has been uploaded, The local archive will
 be deleted.
 
+### `backupList`
+
+```toml
+[backupList]
+# Whether the feature is enabled
+enabled = true
+
+# Whether to clean up older entries
+cleanEntries = true
+
+# When `cleanEntries` is enabled, If an entry is older than the specified
+# duration, It is forgotten. The following number suffixes are supported:
+# y, m, w, d, which are year, month, week, and day respectively.
+# To specify something like 1 year 1 month, You can do "1y 1m". Numbers
+# are seperated by space, so "1y1m" is invalid.
+olderThan = "1m"
+```
+
 ### Remotes
 
 Remotes are backup upload destinations.
