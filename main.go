@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"runtime/debug"
@@ -25,11 +26,12 @@ func main() {
 	targetsFlag := flag.String("targets", "", "A comma seperated list of targets. \"all\" can be specified to select every target in the configuration file.")
 	backupFlag := flag.Bool("backup", false, "Whether to backup the specified targets or not")
 	installFlag := flag.Bool("install", false, "Install the systemd service & timer for the specified target(s).")
+	dontAsk := flag.Bool("dontask", false, "If set, The program will not ask for any input.")
 
 	flag.Parse()
 
 	if *versionFlag {
-		log.Printf("version 1.0.0 (commit %s)\n", commit)
+		log.Printf("version 1.1.0 (commit %s)\n", commit)
 		os.Exit(0)
 	}
 
@@ -52,8 +54,12 @@ func main() {
 		}
 	}
 
+	if *dontAsk {
+		fmt.Println("Running with the -dontask flag. Will go with default options.")
+	}
+
 	if *installFlag {
-		config.install(targets)
+		config.install(targets, *dontAsk)
 	}
 
 	if *backupFlag {

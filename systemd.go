@@ -20,7 +20,7 @@ var unitFilesLocation = "/etc/systemd/system"
 var filePerms = os.FileMode(0644)
 var operationMode = "--system"
 
-func (c *config) install(targets []string) {
+func (c *config) install(targets []string, dontAsk bool) {
 	currentUser, err := user.Current()
 
 	if err != nil {
@@ -40,15 +40,10 @@ func (c *config) install(targets []string) {
 	fmt.Printf("Unit files will be installed to %s\n", unitFilesLocation)
 	fmt.Print("Do you wish to clean up existing QBS unit files? (if there is any) [Y/n] ")
 
-	var answer string
-	_, err = fmt.Scanln(&answer)
-
-	if err != nil {
-		log.Fatalf("Error while reading user input: %s", err)
-	}
+	answer := askOrFallback("y", dontAsk)
 
 	if strings.ToLower(answer) == "y" {
-		cleanUnits()
+		cleanUnits(dontAsk)
 	} else {
 		fmt.Println("Note: Existing QBS unit files may be overwritten.")
 	}
@@ -68,7 +63,7 @@ func (c *config) install(targets []string) {
 		fmt.Println("Enter the wanted username or enter nothing to run as root.")
 		fmt.Println("Note: QBS will assume the user has a group of the same name and the service will run with that group.")
 		fmt.Print("> ")
-		fmt.Scanln(&username)
+		username = askOrFallback("", dontAsk)
 
 		fmt.Println()
 	}
@@ -114,9 +109,7 @@ func (c *config) install(targets []string) {
 			fmt.Println("Please choose an action:")
 			fmt.Print("[r]eview/[e]dit/[s]ave/save [a]ll ")
 
-			var answer string
-			fmt.Scanln(&answer)
-			answer = strings.ToLower(answer)
+			answer := strings.ToLower(askOrFallback("a", dontAsk))
 
 			switch answer {
 			case "r":
@@ -150,8 +143,7 @@ func (c *config) install(targets []string) {
 	}
 
 	fmt.Print("Do you wish to enable and start these timers right away? [Y/n] ")
-	fmt.Scanln(&answer)
-	answer = strings.ToLower(answer)
+	answer = strings.ToLower(askOrFallback("y", dontAsk))
 
 	if answer != "y" {
 		return
@@ -166,6 +158,22 @@ func (c *config) install(targets []string) {
 			fmt.Printf("Enabling and starting unit failed for unit \"%s\". Because: %s\n", timerName, err)
 		}
 	}
+}
+
+func askOrFallback(fallback string, dontAsk bool) string {
+	if dontAsk {
+		fmt.Println(fallback)
+		return fallback
+	}
+
+	var answer string
+	_, err := fmt.Scanln(&answer)
+
+	if err != nil {
+		log.Fatalf("Error while reading user input: %s", err)
+	}
+
+	return answer
 }
 
 func intervalOrServerNames(interval string, names []string) string {
@@ -234,7 +242,7 @@ func editFile(editor, filePath, original string) string {
 	return string(contents)
 }
 
-func cleanUnits() {
+func cleanUnits(dontAsk bool) {
 	var fileList []string
 	toBeDisabled := make(map[string]struct{})
 
@@ -270,8 +278,7 @@ func cleanUnits() {
 	} else {
 		fmt.Print("Do you wish to continue? [Y/n] ")
 
-		var answer string
-		fmt.Scanln(&answer)
+		answer := askOrFallback("y", dontAsk)
 
 		if strings.ToLower(answer) != "y" {
 			return
@@ -310,8 +317,7 @@ func cleanUnits() {
 
 	fmt.Print("Do you wish to delete the unit files? [Y/n] ")
 
-	var answer string
-	fmt.Scanln(&answer)
+	answer := askOrFallback("y", dontAsk)
 
 	if strings.ToLower(answer) != "y" {
 		return

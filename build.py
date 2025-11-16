@@ -10,7 +10,8 @@ systems = {
     "linux": ["amd64", "arm64", "arm"],
 }
 
-shutil.rmtree("./dist")
+if os.path.isdir("./dist"):
+    shutil.rmtree("./dist")
 
 # "system" = Operating System
 for system, arches in systems.items():
