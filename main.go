@@ -31,7 +31,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		log.Printf("version 1.1.0 (commit %s)\n", commit)
+		log.Printf("version 1.1.1 (commit %s)\n", commit)
 		os.Exit(0)
 	}
 

@@ -3,7 +3,7 @@
 import os
 import shutil
 
-version = "1.0.0"
+version = "1.1.0"
 systems = {
     "windows": ["amd64", "arm64"],
     "darwin": ["amd64", "arm64"],
