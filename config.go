@@ -104,6 +104,10 @@ func loadConfig(config *config, validate bool) {
 	}
 
 	for _, target := range config.Targets {
+		if target.Interval == "" {
+			continue
+		}
+
 		log.Printf("Validating target \"%s\"\n", target.Path)
 		cmd := exec.Command("systemd-analyze", "calendar", target.Interval)
 		cmd.Stdout = os.Stdout

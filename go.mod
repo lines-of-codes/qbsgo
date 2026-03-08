@@ -2,11 +2,11 @@ module github.com/lines-of-codes/qbsgo
 
 go 1.25.3
 
-require github.com/klauspost/compress v1.18.3
+require github.com/klauspost/compress v1.18.4
 
 require (
-	golang.org/x/crypto v0.47.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 )
 
 require (

@@ -73,7 +73,17 @@ func (c *config) install(targets []string, dontAsk bool) {
 	for _, targetName := range targets {
 		target := c.Targets[targetName]
 
+		if target.Interval == "" {
+			log.Printf("Target \"%s\" will be skipped, Interval not set.\n", targetName)
+			continue
+		}
+
 		intervals[target.Interval] = append(intervals[target.Interval], targetName)
+	}
+
+	if len(intervals) == 0 {
+		log.Println("No target to set up.")
+		return
 	}
 
 	saveAll := false
