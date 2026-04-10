@@ -90,6 +90,7 @@ func (c *config) backup(targets []string) {
 		c.BackupList.append(listEntry{
 			Id:       backupId,
 			Date:     backupStart.Format(time.RFC3339),
+			Target:   targetName,
 			Remote:   target.Remote,
 			FilePath: dest,
 		})

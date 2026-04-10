@@ -16,6 +16,7 @@ import (
 
 type listEntry struct {
 	Id       string
+	Target   string
 	Remote   string
 	FilePath string
 	Date     string

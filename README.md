@@ -23,6 +23,7 @@ require workarounds
 - `-backup`: Triggers a backup for the specified targets
 - `-install`: Install systemd Timers to trigger backups periodically.
 - `-version`: Prints the version of the program and exit.
+- `-config path`: Sets the config path. Other files (such as the backup list) will also be saved in the same directory.
 
 ## Systemd Timers
 

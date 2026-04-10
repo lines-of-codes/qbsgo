@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -65,8 +66,17 @@ const FILE_PREFIX = "file:"
 
 var AppFileDir = "/etc/qbsgo/"
 
-func loadConfig(config *config, validate bool) {
+func loadConfig(config *config, validate bool, pathOverride string) {
 	config.configPath = "/etc/qbsgo/qbsgo.toml"
+
+	if len(pathOverride) > 0 {
+		config.configPath = pathOverride
+		AppFileDir = path.Dir(pathOverride)
+
+		if _, err := os.Stat(config.configPath); os.IsNotExist(err) {
+			log.Fatal("Specified config file not found")
+		}
+	}
 
 	if _, err := os.Stat(config.configPath); os.IsNotExist(err) {
 		AppFileDir = "./"

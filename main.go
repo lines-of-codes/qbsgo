@@ -27,6 +27,7 @@ func main() {
 	backupFlag := flag.Bool("backup", false, "Whether to backup the specified targets or not")
 	installFlag := flag.Bool("install", false, "Install the systemd service & timer for the specified target(s).")
 	dontAsk := flag.Bool("dontask", false, "If set, The program will not ask for any input.")
+	configFlag := flag.String("config", "", "Sets the config file")
 
 	flag.Parse()
 
@@ -36,7 +37,7 @@ func main() {
 	}
 
 	var config config
-	loadConfig(&config, *installFlag)
+	loadConfig(&config, *installFlag, *configFlag)
 
 	targets := strings.Split(*targetsFlag, ",")
 
